@@ -1,82 +1,183 @@
 import { useState, type ChangeEvent } from 'react';
-import { getCodeSandboxHost } from "@codesandbox/utils";
+import { getCodeSandboxHost } from '@codesandbox/utils';
+import { BrowserRouter as Router, Routes, Route, Link } from 'react-router-dom';
+import HotelPage from './pages/HotelPage';
+import CityPage from './pages/CityPage';
+import CountryPage from './pages/CountryPage';
+import { City, Country, Hotel } from './types/types';
 
-type Hotel = { _id: string, chain_name: string; hotel_name: string; city: string, country: string };
+const codeSandboxHost = getCodeSandboxHost(3001);
+const API_URL = codeSandboxHost
+  ? `https://${codeSandboxHost}`
+  : 'http://localhost:3001';
 
-const codeSandboxHost = getCodeSandboxHost(3001)
-const API_URL = codeSandboxHost ? `https://${codeSandboxHost}` : 'http://localhost:3001'
+const fetchSearchResults = async (query: string) => {
+  const response = await fetch(`${API_URL}/search?query=${query}`);
+  if (!response.ok) return { hotels: [], cities: [], countries: [] };
 
-const fetchAndFilterHotels = async (value: string) => {
-  const hotelsData = await fetch(`${API_URL}/hotels`);
-  const hotels = (await hotelsData.json()) as Hotel[];
-  return hotels.filter(
-    ({ chain_name, hotel_name, city, country }) =>
-      chain_name.toLowerCase().includes(value.toLowerCase()) ||
-      hotel_name.toLowerCase().includes(value.toLowerCase()) ||
-      city.toLowerCase().includes(value.toLowerCase()) ||
-      country.toLowerCase().includes(value.toLowerCase())
-  );
-}
+  return (await response.json()) as {
+    hotels: Hotel[];
+    cities: City[];
+    countries: Country[];
+  };
+};
 
 function App() {
+  const [searchValue, setSearchValue] = useState('');
   const [hotels, setHotels] = useState<Hotel[]>([]);
+  const [cities, setCities] = useState<City[]>([]);
+  const [countries, setCountries] = useState<Country[]>([]);
   const [showClearBtn, setShowClearBtn] = useState(false);
 
   const fetchData = async (event: ChangeEvent<HTMLInputElement>) => {
-    if (event.target.value === '') {
-      setHotels([]);
-      setShowClearBtn(false);
+    const value = event.target.value.trim();
+    setSearchValue(event.target.value);
+    if (value === '') {
+      clearSearch();
       return;
     }
-
-    const filteredHotels = await fetchAndFilterHotels(event.target.value)
+    const { hotels, cities, countries } = await fetchSearchResults(value);
     setShowClearBtn(true);
-    setHotels(filteredHotels);
+    setHotels(hotels);
+    setCities(cities);
+    setCountries(countries);
+  };
+
+  const clearSearch = () => {
+    setSearchValue('');
+    setHotels([]);
+    setCities([]);
+    setCountries([]);
+    setShowClearBtn(false);
   };
 
   return (
-    <div className="App">
-      <div className="container">
-        <div className="row height d-flex justify-content-center align-items-center">
-          <div className="col-md-6">
-            <div className="dropdown">
-              <div className="form">
-                <i className="fa fa-search"></i>
-                <input
-                  type="text"
-                  className="form-control form-input"
-                  placeholder="Search accommodation..."
-                  onChange={fetchData}
-                />
-                {showClearBtn && (
-                  <span className="left-pan">
-                    <i className="fa fa-close"></i>
-                  </span>
-                )}
-              </div>
-              {!!hotels.length && (
-                <div className="search-dropdown-menu dropdown-menu w-100 show p-2">
-                  <h2>Hotels</h2>
-                  {hotels.length ? hotels.map((hotel, index) => (
-                    <li key={index}>
-                      <a href={`/hotels/${hotel._id}`} className="dropdown-item">
-                        <i className="fa fa-building mr-2"></i>
-                        {hotel.hotel_name}
-                      </a>
-                      <hr className="divider" />
-                    </li>
-                  )) : <p>No hotels matched</p>}
-                  <h2>Countries</h2>
-                  <p>No countries matched</p>
-                  <h2>Cities</h2>
-                  <p>No cities matched</p>
+    <Router>
+      <Routes>
+        {/* Main Search Page */}
+        <Route
+          path="/"
+          element={
+            <div className="App">
+              <div className="container">
+                <div className="row height d-flex justify-content-center align-items-center">
+                  <div className="col-md-6">
+                    <div className="dropdown">
+                      {/*Instructions for User */}
+                      <div className="instructions">
+                        <h2 className="app-title">Find Your Destination</h2>
+                        <p className="instruction-text">
+                          Start typing the name of a hotel, city, or country to
+                          search.
+                        </p>
+                      </div>
+
+                      {/*Search Bar */}
+                      <div className="form">
+                        <i className="fa fa-search search-icon"></i>
+                        <input
+                          type="text"
+                          className="form-control form-input"
+                          placeholder="Search for hotels, cities, or countries..."
+                          value={searchValue}
+                          onChange={fetchData}
+                        />
+                        {showClearBtn && (
+                          <span
+                            className="left-pan"
+                            onClick={clearSearch}
+                            style={{ cursor: 'pointer' }}
+                          >
+                            <i className="fa fa-close"></i>
+                          </span>
+                        )}
+                      </div>
+
+                      {/*Search Results */}
+                      {!!hotels.length ||
+                      !!cities.length ||
+                      !!countries.length ? (
+                        <div className="search-dropdown-menu dropdown-menu w-100 show p-2">
+                          {/* Hotels Section */}
+                          <h2>🏨 Hotels</h2>
+                          {hotels.length ? (
+                            hotels.map((hotel) => (
+                              <li key={hotel._id}>
+                                <Link
+                                  to={`/hotels/${hotel._id}`}
+                                  className="dropdown-item"
+                                  state={{ hotel }}
+                                >
+                                  <i className="fa fa-building mr-2"></i>
+                                  {hotel.hotel_name}
+                                </Link>
+                                <hr className="divider" />
+                              </li>
+                            ))
+                          ) : (
+                            <p className="no-results">No hotels found.</p>
+                          )}
+
+                          {/*Countries Section */}
+                          <h2>🌍 Countries</h2>
+                          {countries.length ? (
+                            countries.map((country, index) => (
+                              <li key={index}>
+                                <Link
+                                  to={`/countries/${country.country}`}
+                                  className="dropdown-item"
+                                >
+                                  <i className="fa fa-globe mr-2"></i>{' '}
+                                  {country.country}
+                                </Link>
+                                <hr className="divider" />
+                              </li>
+                            ))
+                          ) : (
+                            <p className="no-results">No countries found.</p>
+                          )}
+
+                          {/*Cities Section */}
+                          <h2>🏙️ Cities</h2>
+                          {cities.length ? (
+                            cities.map((city, index) => (
+                              <li key={index}>
+                                <Link
+                                  to={`/cities/${city.name}`}
+                                  className="dropdown-item"
+                                >
+                                  <i className="fa fa-map-marker mr-2"></i>{' '}
+                                  {city.name}
+                                </Link>
+                                <hr className="divider" />
+                              </li>
+                            ))
+                          ) : (
+                            <p className="no-results">No cities found.</p>
+                          )}
+                        </div>
+                      ) : (
+                        <div className="popular-searches">
+                          <h3>Popular Searches:</h3>
+                          <ul>
+                            <li>🏨 Hilton Hotel</li>
+                            <li>🌍 United Kingdom</li>
+                            <li>🏙️ Paris</li>
+                          </ul>
+                        </div>
+                      )}
+                    </div>
+                  </div>
                 </div>
-              )}
+              </div>
             </div>
-          </div>
-        </div>
-      </div>
-    </div>
+          }
+        />
+        <Route path="/hotels/:id" element={<HotelPage />} />
+        <Route path="/cities/:name" element={<CityPage />} />
+        <Route path="/countries/:name" element={<CountryPage />} />
+      </Routes>
+    </Router>
   );
 }
 

@@ -5,15 +5,23 @@ import { MongoClient } from 'mongodb';
 import rateLimit from 'express-rate-limit';
 import NodeCache from 'node-cache';
 
+// api doesnt use pagination -> could cause performance issues with large datasets
+// Fix: Implement a limit parameter to return a subset of results.
+
+//sets up an express API w/ rate limiter, cache, MongoDB connection, search functionality
+// + : rate limiter to prevent abuse & DoS attacks
+// + : cache to reduce load on database
 dotenv.config();
 
 // Cache for search results -> reduces load on database
+// cache doesnt expire unless the key is not used for 5 minutes
+// in the event of the DB being updated frequently ->  smarter cache invalidation strategy?
 const cache = new NodeCache({ stdTTL: 300, checkperiod: 60 });
 
 // Rate limiter to prevent abuse & Dos attacks
 const searchLimiter = rateLimit({
   windowMs: 60 * 1000, // 1 minute 
-  max: 200, // 200 requests per min per IP -> for prod this should be lower
+  max: 2, // 200 requests per min per IP -> for prod this should be lower
   message: { error: 'Too many requests, please try again later' },
 });
 
@@ -65,6 +73,9 @@ app.get('/search', searchLimiter, async (req, res) => {
   }
 
   try {
+
+    // is opened and closed on each request ->  use a single persistent connection to improve performance.
+    // fix: move the connection outside of the request handler
     await mongoClient.connect();
     console.log('Successfully connected to MongoDB!');
     const db = mongoClient.db();

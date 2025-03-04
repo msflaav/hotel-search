@@ -6,6 +6,15 @@ import CityPage from './pages/CityPage';
 import CountryPage from './pages/CountryPage';
 import { City, Country, Hotel } from './types/types';
 
+// areas of improvement
+// 2.	Accessibility & Mobile Optimization
+// •	Search results lack keyboard navigation.
+// •	Fix: Implement keyboard navigation for a11y (e.g., arrow keys to navigate results).
+
+// 3.	UI Enhancements
+// •	Add loading states to indicate when results are being fetched.
+// •	Add error handling (e.g., if the API is down, show an error message).
+
 const codeSandboxHost = getCodeSandboxHost(3001);
 const API_URL = codeSandboxHost
   ? `https://${codeSandboxHost}`
@@ -29,6 +38,7 @@ function App() {
   const [countries, setCountries] = useState<Country[]>([]);
   const [showClearBtn, setShowClearBtn] = useState(false);
 
+  // The fetchData function fires on every keystroke. -> introduce debouncing to delay the API call until the user stops typing
   const fetchData = async (event: ChangeEvent<HTMLInputElement>) => {
     const value = event.target.value.trim();
     setSearchValue(event.target.value);
